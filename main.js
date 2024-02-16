@@ -46,8 +46,8 @@ function deleteCharSync(loc) {
 
 function updateTextbox() {
     dataDisplay.selectionStart = dataDisplay.selectionEnd;
-    dataDisplay.style.height = 'auto';
-    dataDisplay.style.height = dataDisplay.scrollHeight + "px";
+    //dataDisplay.style.height = 'auto';
+    //dataDisplay.style.height = dataDisplay.scrollHeight + "px";
 }
 
 dataDisplay.addEventListener('select', updateTextbox, false);
@@ -84,6 +84,10 @@ ws.onmessage = (event) => {
     } else if (data.messageType == "error") {
         alert(data.messageData);
     }
+}
+
+ws.onclose = () => {
+    alert("Websocket closed, refresh!");
 }
 
 setInterval(() => {
