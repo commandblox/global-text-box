@@ -17,19 +17,25 @@ if (fs.existsSync("text.txt")) {
 const insertAt = (str, sub, pos) => `${str.slice(0, pos)}${sub}${str.slice(pos)}`;
 const removeAt = (str, pos) => str.slice(0, pos - 1) + str.slice(pos);
 
-function insertChar(char, loc) {
+async function insertChar(char, loc) {
+    try{
     stringThing = insertAt(stringThing, char, loc);
+    }catch(err){console.warn(err)}
 }
 
-function deleteChar(loc) {
+async function deleteChar(loc) {
+    try{
     stringThing = removeAt(stringThing, loc);
+    }catch(err){console.warn(err)}
 }
 
-app.ws('/socket', (ws, req) => {
+app.ws('/socket', async (ws, req) => {
+    try{
     ws.send(JSON.stringify({ messageType: "data", messageData: stringThing }))
 
-    ws.on('message', (msg) => {
-        let data = JSON.parse(msg);
+    ws.on('message', async(msg) => {
+        try{
+        let data = await JSON.parse(msg);
         
         var processedData;
         if (data.messageType == 'insertChar') {
@@ -38,13 +44,13 @@ app.ws('/socket', (ws, req) => {
                 char: data.char[0], 
                 loc: data.loc
             }
-            insertChar(processedData.char, processedData.loc);
+            await insertChar(processedData.char, processedData.loc);
         } else if (data.messageType == 'deleteChar') {
             processedData = {
                 messageType: 'deleteChar', 
                 loc: data.loc
             }
-            deleteChar(processedData.loc);
+            await deleteChar(processedData.loc);
         }
         console.log(`received ${JSON.stringify(data)} and processed to : ${JSON.stringify(processedData)}`);
 
@@ -55,7 +61,10 @@ app.ws('/socket', (ws, req) => {
                 }
             });
         }
+        }catch(err){console.warn(err)}
     });
+
+    }catch(err){console.warn(err)}
     
 });
 
@@ -63,31 +72,31 @@ const options = {
     root: path.join(__dirname)
 };
 
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
     res.sendFile("index.html", options);
 });
 
-app.get('/text', (req, res) => {
+app.get('/text', async (req, res) => {
     res.sendFile("text.txt", options);
 });
 
-app.get('/main.js', (req, res) => {
+app.get('/main.js',async (req, res) => {
     res.sendFile("main.js", options);
 });
 
-app.get('*', (req, res) => {
+app.get('*',async (req, res) => {
     let errorpage = fs.readFileSync('404.html', 'utf-8').replace("${page}", req.path);
     res.status(404).send(errorpage);
 })
 
-app.use((err, req, res, next) => {
+app.use(async(err, req, res, next) => {
     if(!err) return next();
     res.err = err;
     res.status(500).json({ status: "Server error" });
     throw err;
 });
 
-app.listen(serveraddr, () => {
+app.listen(serveraddr, async() => {
     console.log(`Server running`);
 });
 
