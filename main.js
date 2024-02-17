@@ -83,6 +83,8 @@ ws.onmessage = (event) => {
         cooldown = Number(data.messageData);
     } else if (data.messageType == "error") {
         alert(data.messageData);
+    } else if (data.messageType == "refresh") {
+        location.reload();
     }
 }
 

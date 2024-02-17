@@ -5,6 +5,8 @@ const fs = require('node:fs');
 const ws = require('ws');
 const ON_DEATH = require('death');
 
+const devIp = process.env.DEV_IP;
+
 const serveraddr = 8080;
 const app = express();
 const expressWs = require('express-ws')(app);
@@ -41,55 +43,71 @@ app.ws('/socket', (ws, req) => {
 
     cooldown(ws, ip);
 
+    console.log(`${ip} connected (${expressWs.getWss().clients.size} users connected)`);
+
     ws.on('close', () => {
-            
+        console.log(`${ip} disconnected (${expressWs.getWss().clients.values.size} users connected)`);
     });
 
     ws.on('message', (msg) => {
         if (ipCooldownMap[ip] < Date.now()) {
             let data = JSON.parse(msg);
             
-            if (data.loc < 0) {
-                data.loc = 0;
-                ws.send(JSON.stringify({ messageType: "error", messageData: "you be having some sus bot activity!" }));
-            }
-
-            var processedData;
-            if (data.messageType == 'insertChar') {
-                processedData = {
-                    messageType: 'insertChar', 
-                    char: data.char[0], 
-                    loc: data.loc
+            if (data.broadcast) {
+                if (ip == devIp) {
+                    expressWs.getWss().clients.forEach(client => {
+                        data.broadcast = undefined;
+                        client.send(JSON.stringify(data));
+                    });
+                } else {
+                    console.log(`client ${ip} tried to use broadcast!`);
                 }
-
-                if (data.char.length > 1) {
+            } else {
+                if (data.loc < 0) {
+                    data.loc = 0;
+                    console.log(`data.loc < 0 on client ${ip}`);
                     ws.send(JSON.stringify({ messageType: "error", messageData: "you be having some sus bot activity!" }));
                 }
 
-                insertChar(processedData.char, processedData.loc);
-            } else if (data.messageType == 'deleteChar') {
-                processedData = {
-                    messageType: 'deleteChar', 
-                    loc: data.loc
-                }
-
-                if (data.loc < 1) {
-                    data.loc = 1;
-                    ws.send(JSON.stringify({ messageType: "error", messageData: "you be having some sus bot activity!" }));
-                }
-
-                deleteChar(processedData.loc);
-            }
-            console.log(`received ${JSON.stringify(data)} and processed to : ${JSON.stringify(processedData)}`);
-
-            if (processedData) {
-                expressWs.getWss().clients.forEach(client => {
-                    if (client != ws) {
-                        client.send(JSON.stringify(processedData));
+                var processedData;
+                if (data.messageType == 'insertChar') {
+                    processedData = {
+                        messageType: 'insertChar', 
+                        char: data.char[0], 
+                        loc: data.loc
                     }
-                });
+
+                    if (data.char.length > 1) {
+                        console.log(`data.char.length > 1 on client ${ip}`);
+                        ws.send(JSON.stringify({ messageType: "error", messageData: "you be having some sus bot activity!" }));
+                    }
+
+                    insertChar(processedData.char, processedData.loc);
+                } else if (data.messageType == 'deleteChar') {
+                    processedData = {
+                        messageType: 'deleteChar', 
+                        loc: data.loc
+                    }
+
+                    if (data.loc < 1) {
+                        data.loc = 1;
+                        console.log(`data.loc < 1 on client ${ip}`);
+                        ws.send(JSON.stringify({ messageType: "error", messageData: "you be having some sus bot activity!" }));
+                    }
+
+                    deleteChar(processedData.loc);
+                } 
+
+                if (processedData) {
+                    expressWs.getWss().clients.forEach(client => {
+                        if (client != ws) {
+                            client.send(JSON.stringify(processedData));
+                        }
+                    });
+                }
             }
         } else {
+            console.log(`${ip} typed too fast!`);
             ws.send(JSON.stringify({ messageType: "error", messageData: "You are typing too fast!" }));
         }
         cooldown(ws, ip);
@@ -116,12 +134,12 @@ app.get('/main.js', (req, res) => {
 app.get('/constants.js', (req, res) => {
     let constantspage = `const cooldownAmt = ${cooldownAmt};`;
     res.send(constantspage);
-})
+});
 
 app.get('*', (req, res) => {
     let errorpage = fs.readFileSync('404.html', 'utf-8').replace("${page}", req.path);
     res.status(404).send(errorpage);
-})
+});
 
 app.use((err, req, res, next) => {
     if(!err) return next();
