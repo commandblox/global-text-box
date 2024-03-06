@@ -1,2 +1,1 @@
-hosted here:
-https://tortoise-helpful-minnow.ngrok-free.app
+not hosted anymore do it yourself lol
